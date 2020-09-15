@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+type httpClient interface {
+	Do(*http.Request) (*http.Response, error)
+	SetTimeout(time.Duration)
+}
+
 // ErrIncorrectEnvironemt ...
 var ErrIncorrectEnvironemt = errors.New("one of dev/uat/prod only are allowed")
 
@@ -610,23 +615,30 @@ func (c *Client) validateTokens() error {
 
 // NewClient returns an API client.
 // If options is nil, UATClientOptions will be used.
-func NewClient(clientID, username, passsword string, options *ClientOptions) *Client {
+func NewClient(clientID, username, password string, httpClient httpClient, options *ClientOptions) *Client {
 	if options == nil {
 		options = UATClientOptions
 	}
 
-	if options != nil && options.Timeout == nil {
+	if options.Timeout == nil {
 		timeout := defaulttimeout
 		options.Timeout = &timeout
 	}
+
+	if httpClient == nil {
+		httpClient = newDefaultHTTPClient()
+	}
+
+	httpClient.SetTimeout(time.Second * time.Duration(*options.Timeout))
 
 	return &Client{
 		Credentials: TokenRequest{
 			ClientID: clientID,
 			Username: username,
-			Password: passsword,
+			Password: password,
 		},
-		Options: options,
+		Options:    options,
+		HTTPClient: httpClient,
 	}
 }
 
