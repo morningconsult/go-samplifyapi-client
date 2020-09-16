@@ -51,6 +51,7 @@ type ClientOptions struct {
 	StatusURL  string `conform:"trim"`
 	GatewayURL string `conform:"trim"`
 	Timeout    *int
+	HTTPClient httpClient
 }
 
 // Client is used to make API requests to the Samplify API.
@@ -58,7 +59,6 @@ type Client struct {
 	Credentials TokenRequest
 	Auth        TokenResponse
 	Options     *ClientOptions
-	HTTPClient  httpClient
 }
 
 // GetInvoicesSummary ...
@@ -1621,7 +1621,7 @@ func (c *Client) validateTokensWithContext(ctx context.Context) error {
 
 // NewClient returns an API client.
 // If options is nil, UATClientOptions will be used.
-func NewClient(clientID, username, password string, httpClient httpClient, options *ClientOptions) *Client {
+func NewClient(clientID, username, password string, options *ClientOptions) *Client {
 	if options == nil {
 		options = UATClientOptions
 	}
@@ -1631,8 +1631,8 @@ func NewClient(clientID, username, password string, httpClient httpClient, optio
 		options.Timeout = &timeout
 	}
 
-	if httpClient == nil {
-		httpClient = &http.Client{
+	if options.HTTPClient == nil {
+		options.HTTPClient = &http.Client{
 			Timeout: time.Second * time.Duration(*options.Timeout),
 		}
 	}
@@ -1643,13 +1643,12 @@ func NewClient(clientID, username, password string, httpClient httpClient, optio
 			Username: username,
 			Password: password,
 		},
-		Options:    options,
-		HTTPClient: httpClient,
+		Options: options,
 	}
 }
 
 // SetOptions ...
-func (c *Client) SetOptions(env string, _ int) error {
+func (c *Client) SetOptions(env string, timeout int) error {
 	switch env {
 	case "dev":
 		c.Options = DevClientOptions
@@ -1661,23 +1660,25 @@ func (c *Client) SetOptions(env string, _ int) error {
 		return ErrIncorrectEnvironemt
 	}
 
+	if timeout == 0 {
+		timeout = defaulttimeout
+		c.Options.Timeout = &timeout
+	}
+
+	c.Options.HTTPClient = &http.Client{
+		Timeout: time.Second * time.Duration(timeout),
+	}
+
 	return nil
 }
 
 // NewClientFromEnv returns an API client.
 func NewClientFromEnv(clientID, username, passsword string, env string, timeout int) (*Client, error) {
-	if timeout == 0 {
-		timeout = defaulttimeout
-	}
-
 	client := &Client{
 		Credentials: TokenRequest{
 			ClientID: clientID,
 			Username: username,
 			Password: passsword,
-		},
-		HTTPClient: &http.Client{
-			Timeout: time.Second * time.Duration(timeout),
 		},
 	}
 

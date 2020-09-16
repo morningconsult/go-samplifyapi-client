@@ -20,10 +20,7 @@ type APIResponse struct {
 
 // SendRequest exposing sendrequest to enable custom requests
 func SendRequest(host, method, url, accessToken string, body interface{}, timeout int) (*APIResponse, error) {
-	httpClient := &http.Client{
-		Timeout: time.Second * time.Duration(timeout),
-	}
-	c := NewClient("", "", "", httpClient, nil)
+	c := NewClient("", "", "", nil)
 	return c.sendRequest(host, method, url, accessToken, body)
 }
 
@@ -82,7 +79,7 @@ func (c *Client) makeRequest(
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.Options.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +185,7 @@ func (c *Client) makeFormDataRequest(
 
 	req.Header.Add("Content-Type", bodyWriter.FormDataContentType())
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.Options.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
