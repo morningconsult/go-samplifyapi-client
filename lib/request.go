@@ -20,9 +20,9 @@ type APIResponse struct {
 
 // SendRequest exposing sendrequest to enable custom requests
 func SendRequest(host, method, url, accessToken string, body interface{}, timeout int) (*APIResponse, error) {
-	dur := time.Duration(timeout)
-	httpClient := newDefaultHTTPClient()
-	httpClient.SetTimeout(dur)
+	httpClient := &http.Client{
+		Timeout: time.Second * time.Duration(timeout),
+	}
 	c := NewClient("", "", "", httpClient, nil)
 	return c.sendRequest(host, method, url, accessToken, body)
 }

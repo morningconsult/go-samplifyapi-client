@@ -12,7 +12,6 @@ import (
 
 type httpClient interface {
 	Do(*http.Request) (*http.Response, error)
-	SetTimeout(time.Duration)
 }
 
 // ErrIncorrectEnvironemt ...
@@ -1633,10 +1632,10 @@ func NewClient(clientID, username, password string, httpClient httpClient, optio
 	}
 
 	if httpClient == nil {
-		httpClient = newDefaultHTTPClient()
+		httpClient = &http.Client{
+			Timeout: time.Second * time.Duration(*options.Timeout),
+		}
 	}
-
-	httpClient.SetTimeout(time.Second * time.Duration(*options.Timeout))
 
 	return &Client{
 		Credentials: TokenRequest{
@@ -1650,7 +1649,7 @@ func NewClient(clientID, username, password string, httpClient httpClient, optio
 }
 
 // SetOptions ...
-func (c *Client) SetOptions(env string, timeout int) error {
+func (c *Client) SetOptions(env string, _ int) error {
 	switch env {
 	case "dev":
 		c.Options = DevClientOptions
@@ -1658,35 +1657,35 @@ func (c *Client) SetOptions(env string, timeout int) error {
 		c.Options = UATClientOptions
 	case "prod":
 		c.Options = ProdClientOptions
-	}
-
-	if c.Options == nil {
+	default:
 		return ErrIncorrectEnvironemt
 	}
-
-	if timeout == 0 {
-		timeout = defaulttimeout
-	}
-
-	c.Options.Timeout = &timeout
-
-	c.HTTPClient.SetTimeout(time.Second * time.Duration(timeout))
 
 	return nil
 }
 
 // NewClientFromEnv returns an API client.
 func NewClientFromEnv(clientID, username, passsword string, env string, timeout int) (*Client, error) {
+	if timeout == 0 {
+		timeout = defaulttimeout
+	}
+
 	client := &Client{
 		Credentials: TokenRequest{
 			ClientID: clientID,
 			Username: username,
 			Password: passsword,
 		},
-		HTTPClient: newDefaultHTTPClient(),
+		HTTPClient: &http.Client{
+			Timeout: time.Second * time.Duration(timeout),
+		},
 	}
-	err := client.SetOptions(env, timeout)
-	return client, err
+
+	if err := client.SetOptions(env, timeout); err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }
 
 // GetHealthyStatus ... Get the healthy status on API
